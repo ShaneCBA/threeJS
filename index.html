@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Three.js</title>
+  </head>
+  <body>
+    <script src="https://ajax.googleapis.com/ajax/libs/threejs/r76/three.min.js"></script>
+    <script>
+      var mouse = {x:0,y:0}
+
+      var fov = 60;
+
+      var clock = new THREE.Clock();
+
+      var size = {w:640,h:320}
+      var scene = new THREE.Scene();
+      var aspect = size.w / size.h;
+      var camera = new THREE.PerspectiveCamera( fov, aspect, 0.1, 1000 );
+      var dispW = (Math.sin(fov/2*Math.PI/180)*camera.near)/Math.sin(90-(fov/2)*Math.PI/180)*2;
+      var renderer = new THREE.WebGLRenderer();
+      renderer.domElement.addEventListener('mousemove', function(event){
+        mouse.x = (event.clientX - event.target.clientWidth/2 - event.target.getBoundingClientRect().left);
+        mouse.y = -(event.clientY - event.target.clientHeight/2 - event.target.getBoundingClientRect().top);
+      })
+
+      renderer.setSize( size.w, size.h );
+
+      document.body.appendChild( renderer.domElement );
+
+
+      var loader = new THREE.JSONLoader();
+      var mesh;
+      var material;
+      var action = {};
+      var mixer;
+
+      var pointLight = new THREE.PointLight( 0xff0000, 1, 100 );
+      scene.add( pointLight );
+
+
+      var light = new THREE.AmbientLight( 0x404040 ); // soft white light
+      scene.add( light );
+      scene.add( light );
+
+      camera.position.z = 5;
+
+      loader.load("pegnin.json", function(geometry, materials){
+        material = new THREE.MeshNormalMaterial( {
+          color: 0xff0000,
+          polygonOffset: true,
+          polygonOffsetFactor: 1, // positive value pushes polygon further away
+          polygonOffsetUnits: 1
+        });
+        material.depthTest = true;
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.material.side = THREE.DoubleSide;
+
+        mixer = new THREE.AnimationMixer(mesh);
+
+        mixer.update(clock.getDelta());
+        action.flap = mixer.clipAction(geometry.animations[0]);
+        action.waddle = mixer.clipAction(geometry.animations[1]);
+
+        action.flap.setEffectiveWeight(1);
+        action.waddle.setEffectiveWeight(1);
+
+        action.flap.enabled = true;
+        action.waddle.enabled = true;
+
+        scene.add(mesh);
+
+        render();
+
+        action.flap.play();
+
+        mesh.position.z = -25;
+      });
+
+      function render () {
+        requestAnimationFrame(render);
+
+        var delta = clock.getDelta();
+
+        var tempPlaneH = Math.tan(fov/2*Math.PI/180)*Math.abs(mesh.position.z-camera.position.z);
+        var tempPlaneW = tempPlaneH * aspect;
+
+        mesh.position.y = tempPlaneH*(mouse.y/(size.h/2));
+        mesh.position.x = tempPlaneW*(mouse.x/(size.w/2));
+
+        mesh.rotation.y += .01;
+        if ( mixer ) {
+          mixer.update(delta);
+        }
+
+        renderer.render( scene, camera );
+      };
+    </script>
+  </body>
+</html>
